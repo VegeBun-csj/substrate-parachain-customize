@@ -372,11 +372,21 @@ match_type! {
 	};
 }
 
+/// 配置只有parachain2000和parachain3000之间才能进行消息传递
+match_type! {
+	pub type SpecParachain: impl Contains<MultiLocation> = {
+		X2(Parent, Parachain(2000)) | X2(Parent, Parachain(3000))
+	};
+}
+
+///
 pub type Barrier = (
 	TakeWeightCredit,
-	AllowTopLevelPaidExecutionFrom<All<MultiLocation>>,
-	AllowUnpaidExecutionFrom<ParentOrParentsUnitPlurality>,
+	AllowTopLevelPaidExecutionFrom<All<MultiLocation>>,	//跨链转账
+	AllowUnpaidExecutionFrom<ParentOrParentsUnitPlurality>,	// 中继链发出的消息
 	// ^^^ Parent & its unit plurality gets free execution
+	// 配置指定链的消息
+	AllowUnpaidExecutionFrom<SpecParachain>,
 );
 
 pub struct XcmConfig;
@@ -440,6 +450,15 @@ impl pallet_aura::Config for Runtime {
 	type AuthorityId = AuraId;
 }
 
+/// configure the ping-pong pallet
+impl cumulus_ping::Config for Runtime {
+	type Event = Event;
+	type Origin = Origin;
+	type Call = Call;
+	type XcmSender = XcmRouter;
+}
+
+
 /// Configure the pallet template in pallets/template.
 impl template::Config for Runtime {
 	type Event = Event;
@@ -475,6 +494,9 @@ construct_runtime!(
 
 		//Template
 		TemplatePallet: template::{Pallet, Call, Storage, Event<T>},
+
+		//ping-pong
+		Pingpong: cumulus_ping::{Pallet, Call, Storage, Event<T>} = 99,
 	}
 );
 
