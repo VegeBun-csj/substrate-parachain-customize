@@ -7,15 +7,16 @@ pub mod pallet {
 	use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
 	use frame_system::pallet_prelude::*;
 
+	use cumulus_pallet_xcm::{ensure_sibling_para, Origin as CumulusOrigin};
 	use cumulus_primitives_core::ParaId;
-	use cumulus_pallet_xcm::{Origin as CumulusOrigin, ensure_sibling_para};
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
-		// origin could from both extrinsic and xcm message
-		type Origin: From<<Self as frame_system::Config>::Origin> + Into<Result<CumulusOrigin, <Self as Config>::Origin>>;
+		// 配置origin可以接收一个普通的交易也可以是一个xcm消息
+		type Origin: From<<Self as frame_system::Config>::Origin>
+			+ Into<Result<CumulusOrigin, <Self as Config>::Origin>>;
 	}
 
 	#[pallet::pallet]
@@ -24,7 +25,8 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn register)]
-	pub type Register<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, Vec<u8>, ValueQuery>;
+	pub type Register<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AccountId, Vec<u8>, ValueQuery>;
 
 	#[pallet::event]
 	#[pallet::metadata(T::AccountId = "AccountId")]
@@ -35,8 +37,7 @@ pub mod pallet {
 	}
 
 	#[pallet::error]
-	pub enum Error<T> {
-	}
+	pub enum Error<T> {}
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
@@ -44,7 +45,11 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		#[pallet::weight(0)]
-		pub fn xregister(origin: OriginFor<T>, account: T::AccountId, name: Vec<u8>) -> DispatchResultWithPostInfo {
+		pub fn xregister(
+			origin: OriginFor<T>,
+			account: T::AccountId,
+			name: Vec<u8>,
+		) -> DispatchResultWithPostInfo {
 			// get the source parachain id from origin
 			let para_id = ensure_sibling_para(<T as Config>::Origin::from(origin))?;
 
