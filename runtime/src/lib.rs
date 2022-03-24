@@ -17,6 +17,7 @@ use sp_runtime::{
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, MultiSignature,
 };
+use cumulus_primitives_core::relay_chain::BlockNumber as VestBlockNumber;
 
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
@@ -448,10 +449,31 @@ impl pallet_collator_selection::Config for Runtime {
 	type WeightInfo = ();
 }
 
+impl pallet_sudo::Config for Runtime {
+	type Event = Event;
+	type Call = Call;
+}
+
 /// Configure the pallet template in pallets/template.
 impl pallet_template::Config for Runtime {
 	type Event = Event;
 }
+
+parameter_types! {
+	pub const FirstVestPercentage: Perbill = Perbill::from_percent(20);
+	pub const MaxContributorsNumber: u32 = 3;
+}
+
+impl pallet_dora_rewards::Config for Runtime {
+	type Event = Event;
+	type Currency = Balances;
+	type VestingBlockNumber = cumulus_primitives_core::relay_chain::BlockNumber;
+	type VestingBlockProvider = cumulus_pallet_parachain_system::RelaychainBlockNumberProvider<Self>;
+	type FirstVestPercentage = FirstVestPercentage;
+	type MaxContributorsNumber = MaxContributorsNumber;
+	
+}
+
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
@@ -485,8 +507,11 @@ construct_runtime!(
 		CumulusXcm: cumulus_pallet_xcm::{Pallet, Event<T>, Origin} = 32,
 		DmpQueue: cumulus_pallet_dmp_queue::{Pallet, Call, Storage, Event<T>} = 33,
 
+		Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>},
+
 		// Template
 		TemplatePallet: pallet_template::{Pallet, Call, Storage, Event<T>}  = 40,
+		DoraRewards: pallet_dora_rewards::{Pallet, Call, Storage, Event<T>, Config<T>},
 	}
 );
 

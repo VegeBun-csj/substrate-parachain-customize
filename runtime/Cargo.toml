@@ -24,6 +24,8 @@ smallvec = "1.6.1"
 
 # Local Dependencies
 pallet-template = { path = "../pallets/template", default-features = false }
+pallet-dora-rewards = { version = "4.0.0-dev", default-features = false, path = "../pallets/Dora-Rewards" }
+
 
 # Substrate Dependencies
 ## Substrate Primitive Dependencies
@@ -115,6 +117,7 @@ std = [
 	"pallet-timestamp/std",
 	"pallet-transaction-payment-rpc-runtime-api/std",
 	"pallet-transaction-payment/std",
+	"pallet-dora-rewards/std",
 	"pallet-xcm/std",
 	"cumulus-pallet-aura-ext/std",
 	"cumulus-pallet-parachain-system/std",

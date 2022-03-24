@@ -87,6 +87,7 @@ pub fn development_config() -> ChainSpec {
 						get_collator_keys_from_seed("Bob"),
 					),
 				],
+				get_account_id_from_seed::<sr25519::Public>("Alice"),
 				vec![
 					get_account_id_from_seed::<sr25519::Public>("Alice"),
 					get_account_id_from_seed::<sr25519::Public>("Bob"),
@@ -142,6 +143,7 @@ pub fn local_testnet_config() -> ChainSpec {
 						get_collator_keys_from_seed("Bob"),
 					),
 				],
+				get_account_id_from_seed::<sr25519::Public>("Alice"),
 				vec![
 					get_account_id_from_seed::<sr25519::Public>("Alice"),
 					get_account_id_from_seed::<sr25519::Public>("Bob"),
@@ -179,6 +181,7 @@ pub fn local_testnet_config() -> ChainSpec {
 
 fn testnet_genesis(
 	invulnerables: Vec<(AccountId, AuraId)>,
+	root_key: AccountId,
 	endowed_accounts: Vec<AccountId>,
 	id: ParaId,
 ) -> parachain_template_runtime::GenesisConfig {
@@ -216,6 +219,14 @@ fn testnet_genesis(
 		parachain_system: Default::default(),
 		polkadot_xcm: parachain_template_runtime::PolkadotXcmConfig {
 			safe_xcm_version: Some(SAFE_XCM_VERSION),
+		},
+		dora_rewards: parachain_template_runtime::DoraRewardsConfig {
+			// set the funds
+			funded_amount: 2000000000000000,
+		},
+		sudo: parachain_template_runtime::SudoConfig {
+			// Assign network admin rights.
+			key: Some(root_key),
 		},
 	}
 }
