@@ -345,3 +345,16 @@ pub struct DelegationCounter {
 	/// The number of delegations made within round.
 	pub counter: u32,
 }
+
+
+/// The total stake of the pallet.
+///
+/// The stake includes both collators' and delegators' staked funds.
+#[derive(Default, Clone, Encode, Decode, RuntimeDebug, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
+pub struct TotalStake<Balance: Default> {
+	pub collators: Balance,
+	pub delegators: Balance,
+}
+
+
+pub type BondOf<T> = Bond<AccountIdOf<T>, BalanceOf<T>>;

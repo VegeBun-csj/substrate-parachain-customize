@@ -14,7 +14,7 @@ pub mod pallet {
 		set::OrderedSet,
 		types::{
 			Bond, Candidate, CandidateStatus, DelegationCounter, Delegator, DelegatorStatus,
-			RoundInfo,
+			RoundInfo, BondOf, TotalStake
 		},
 	};
 	use frame_support::{
@@ -159,17 +159,17 @@ pub mod pallet {
 	/// Total capital locked by this staking pallet
 	pub(crate) type TotalStaking<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
 
+
+	#[pallet::storage]
+	#[pallet::getter(fn total_collator_stake)]
+	pub(crate) type TotalCollatorStake<T: Config> = StorageValue<_, TotalStake<BalanceOf<T>>, ValueQuery>;	
+
 	#[pallet::storage]
 	#[pallet::getter(fn selected_candidates)]
 	/// The candidates number selected every round
 	/// this can be modify by root_key, the top N
 	type CollatorNums<T: Config> = StorageValue<_, u32, ValueQuery>;
 
-	// #[pallet::storage]
-	// #[pallet::getter(fn selected_candidates)]
-	/// The collator candidates selected for the current round
-	/// the top N collator accouts
-	// type CollatorsPerRound<T: Config> = StorageValue<_, Vec<T::AccountId>, ValueQuery>;
 
 	#[pallet::error]
 	pub enum Error<T> {
@@ -393,7 +393,7 @@ pub mod pallet {
 			// ensure the delegators has the bottom amount to delegate
 			ensure!(T::Currency::can_reserve(&who, amount), Error::<T>::InsufficientBalance);
 			let delegate_info = if let Some(mut dgt_state) = <Delegators<T>>::get(&who) {
-				// if get the delegations, this is not the first delegation.
+				// if get the delegations, which means that is not the first delegation.
 				// ensure the delegator is active
 				ensure!(dgt_state.is_active(), Error::<T>::InactiveDelegator);
 				// ensure every delegation amount more than the minimumDelagation
@@ -411,7 +411,7 @@ pub mod pallet {
 				);
 				dgt_state
 			} else {
-				// if the delegator state is none whicg means this is the first delegation.
+				// if the delegator state is none which means that is the first delegation.
 				ensure!(amount > T::MinimumDelegatorBond::get(), Error::<T>::TooLowDelegatorBond);
 				// ensure the comming delegator is not in the candidate pool
 				// candidate and delegator can not be the same AccountId
@@ -425,21 +425,30 @@ pub mod pallet {
 			let delegations_nums: u32 = candidate_info.delegators.len().saturated_into();
 			ensure!(!candidate_info.is_leaving(), Error::<T>::InactiveCandidate);
 
+			let old_total = candidate_info.total_bond;
+			let old_bond = candidate_info.bond;
 			let delegation = Bond { owner: candidate, amount };
 			// update the candidate's delegation info
 			ensure!(
+				// update the candidate's delegation info
 				candidate_info.delegators.try_insert(delegation.clone()).unwrap_or(true),
 				<Error<T>>::DelegatorExistOfCandidate
 			);
-
-			//TODO: update more info(kick some lowest candidate)
 			T::Currency::reserve(&who, amount);
-			//TODO: update total staking
-			//<TotalStaking<T>>::get()
 			// update candidate and delegate state info
 			<CandidatePool<T>>::insert(&candidate, candidate_info);
+			let new_bond = <CandidatePool<T>>::get(&candidate).unwrap().total_bond;
+			let new_total = <CandidatePool<T>>::get(&candidate).unwrap().total_total;
 			<Delegators<T>>::insert(&who, delegate_info);
 			Self::deposit_event(Event::NewDelegation(&who, &candidate, amount));
+			let n = Self::update_top_candidates(
+				candidate,
+				old_bond,
+				old_tatal - old_bond,
+				new_bond,
+				new_total,
+			);
+			Self::deposit_event(Event::TotalCandidate(n));
 			Ok(().into())
 		}
 	}
@@ -459,7 +468,7 @@ pub mod pallet {
 			<Delegators<T>>::get(acc).is_some()
 		}
 
-		//
+		/// update candidate's bond
 		fn update_top_candidates(
 			candidate: T::AccountId,
 			old_self: BalanceOf<T>,
@@ -467,13 +476,14 @@ pub mod pallet {
 			new_self: BalanceOf<T>,
 			new_delagations: BalanceOf<T>,
 		) -> u32 {
+			// get the top numbers 
 			let mut top_candidates = TopCandidates::<T>::get();
 			let num_top_candidates: u32 = top_candidates.len().saturated_into();
+			// get the old stake and new stake
 			let old_stake =
 				Bond { owner: candidate.clone(), amount: old_self.saturating_add(old_delagations) };
 			let new_stake =
 				Bond { owner: candidate.clone(), amount: new_self.saturating_add(new_delagations) };
-
 			// update TopCandidates set
 			let maybe_top_candidate_update = if let Ok(i) = top_candidates.linear_search(&old_stake)
 			{
@@ -483,6 +493,7 @@ pub mod pallet {
 						stake.amount = new_stake.amount;
 					}
 				});
+				// return the old stake candidate's index and top candidates
 				Some((Some(i), top_candidates))
 			} else if top_candidates.try_insert_replace(new_stake.clone()).is_ok() {
 				// case 2: candidate ascends into TopCandidates with new stake
@@ -497,7 +508,7 @@ pub mod pallet {
 			// update storage for TotalCollatorStake and TopCandidates
 			if let Some((maybe_old_idx, top_candidates)) = maybe_top_candidate_update {
 				let max_selected_candidates =
-					MaxSelectedCandidates::<T>::get().saturated_into::<usize>();
+					CollatorNums::<T>::get().saturated_into::<usize>();
 				let was_collating =
 					maybe_old_idx.map(|i| i < max_selected_candidates).unwrap_or(false);
 				let is_collating = top_candidates
@@ -567,7 +578,7 @@ pub mod pallet {
 			// get the top N number
 			let top_n = CollatorNums::<T>::get().saturated_into::<usize>();
 			log::trace!("{} Candidates for {} Collator seats", candidates.len(), top_n);
-			// Choose the top MaxSelectedCandidates qualified candidates
+			// Choose the top collator Candidates qualified candidates
 			let collators = candidates
 				.into_iter()
 				.take(top_n)
@@ -575,6 +586,36 @@ pub mod pallet {
 				.map(|x| x.owner)
 				.collect::<Vec<T::AccountId>>();
 			collators.try_into().expect("Did not extend Collators q.e.d.")
+		}
+
+		fn get_top_candidate_stake_at(
+			top_candidates: &OrderedSet<BondOf<T>, T::MaxTopCandidates>,
+			index: usize,
+		) -> Option<(BalanceOf<T>, BalanceOf<T>)> {
+			top_candidates
+				.get(index)
+				.and_then(|stake| CandidatePool::<T>::get(&stake.owner))
+				// SAFETY: the total is always more than the stake
+				// (bond, delagation)
+				.map(|state| (state.stake, state.total - state.stake))
+		}
+
+		fn update_total_stake_by(
+			add_collators: BalanceOf<T>,
+			add_delegators: BalanceOf<T>,
+			sub_collators: BalanceOf<T>,
+			sub_delegators: BalanceOf<T>,
+		) {
+			TotalCollatorStake::<T>::mutate(|total| {
+				total.collators = total
+					.collators
+					.saturating_sub(sub_collators)
+					.saturating_add(add_collators);
+				total.delegators = total
+					.delegators
+					.saturating_sub(sub_delegators)
+					.saturating_add(add_delegators);
+			});
 		}
 
 		/// Assemble the current set of top candidates and invulnerables into the next collator set.
@@ -630,7 +671,7 @@ pub mod pallet {
 				<frame_system::Pallet<T>>::block_number(),
 			);
 			// get the collator selected from the active candidate pool
-			let selected_collators = Pallet::<T>::selected_candidates().to_vec();
+			let selected_collators = Pallet::<T>::selected_top_candidates().to_vec();
 			//assemble collators = (vulnerables + active collators)
 			let result = Self::assemble_collators(selected_candidates);
 			frame_system::Pallet::<T>::register_extra_weight_unchecked(
