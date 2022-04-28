@@ -1,4 +1,4 @@
-# Substrate Cumulus Parachain Template
+Substrate Cumulus Parachain Template
 
 A new [Cumulus](https://github.com/paritytech/cumulus/)-based Substrate node, ready for hacking :cloud:
 
@@ -348,11 +348,3 @@ your parachains in lock step with the testnet changes if you wish to connect to 
 join the [Parachain Technical matrix chat room](https://app.element.io/#/room/#parachain-technical:matrix.parity.io)
 to ask questions and connect with the parachain building teams.
 
-## Learn More
-
-- More detailed instructions to use Cumulus parachains are found in the
-[Cumulus Workshop](https://substrate.dev/cumulus-workshop/#/en/3-parachains/2-register).
-- Refer to the upstream [Substrate Node Template](https://github.com/substrate-developer-hub/substrate-node-template)
-to learn more about the structure of this project, the capabilities it encapsulates and the way in
-which those capabilities are implemented.
-- Learn more about how a parachain block is added to a finalized chain [here](https://polkadot.network/the-path-of-a-parachain-block/).
