@@ -60,6 +60,7 @@ pub mod pallet {
 		// #[pallet::constant]
 		type MaxInvulnerables: Get<u32>;
 
+
 		type MinSelectedCandidates: Get<u32>;
 
 		/// the minimun block length during a round
@@ -109,6 +110,16 @@ pub mod pallet {
 	pub type Invulnerables<T: Config> = StorageValue<_, Vec<T::AccountId>, ValueQuery>;
 
 	#[pallet::storage]
+	#[pallet::getter(fn candidacy_bond)]
+	/// the minimum bond to become a candidate
+	pub type CandidacyBond<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn candidacy_bond)]
+	/// the minimum staking amount to become the candidate
+	pub type CollatorBond<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
+
+	#[pallet::storage]
 	#[pallet::getter(fn candidate_info)]
 	/// Get collator candidate info associated with an account if account is candidate else None
 	pub(crate) type CandidatePool<T: Config> = StorageMap<
@@ -140,16 +151,6 @@ pub mod pallet {
 	>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn candidacy_bond)]
-	/// the minimum bond to become a candidate
-	pub type CandidacyBond<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
-
-	#[pallet::storage]
-	#[pallet::getter(fn candidacy_bond)]
-	/// the minimum staking amount to become the candidate
-	pub type CollatorBond<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
-
-	#[pallet::storage]
 	#[pallet::getter(fn round)]
 	/// the round(session) length (compute by blockNumbers)
 	pub type Round<T: Config> = StorageValue<_, RoundInfo<T::BlockNumber>, ValueQuery>;
@@ -168,7 +169,7 @@ pub mod pallet {
 	#[pallet::getter(fn selected_candidates)]
 	/// The candidates number selected every round
 	/// this can be modify by root_key, the top N
-	type CollatorNums<T: Config> = StorageValue<_, u32, ValueQuery>;
+	pub type CollatorNums<T: Config> = StorageValue<_, u32, ValueQuery>;
 
 
 	#[pallet::error]
@@ -253,6 +254,7 @@ pub mod pallet {
 				<Round<T>>::put(round);
 				Self::deposit_event(Event::NewRound(round.first, round.current));
 			}
+			//
 			weight
 		}
 	}
